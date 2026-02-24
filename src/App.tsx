@@ -49,6 +49,7 @@ interface PmctlProject {
   token_usage: number;
   relations: string[];
   services?: string[];
+  links?: { label: string, url: string }[];
   git?: {
     is_repo: boolean;
     branch?: string;
@@ -62,23 +63,26 @@ interface PmctlProject {
 function App() {
   const [activeTab, setActiveTab] = useState('projects');
   const [registry, setRegistry] = useState<PortRegistry>({});
-  const [projects, setProjects] = useState<{[key: string]: PmctlProject}>({});
-  const [systemStats, setSystemStats] = useState<{cpu_total: number, memory: {percent: number}} | null>(null);
+  const [projects, setProjects] = useState<{ [key: string]: PmctlProject }>({});
+  const [systemStats, setSystemStats] = useState<{ cpu_total: number, memory: { percent: number } } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
-  const [processing, setProcessing] = useState<{[key: string]: string | null}>({});
+  const [processing, setProcessing] = useState<{ [key: string]: string | null }>({});
+
+  const [newPort, setNewPort] = useState({ service: '', project: '', description: '', port: '' });
 
   const host = window.location.hostname || 'localhost';
 
   const fetchRegistry = useCallback(async () => {
     try {
-      const regRes = await fetch(`http://${host}:4444/ports`);
+      const regRes = await fetch(`http://${host}:7777/api/ports`);
       if (regRes.ok) {
         setRegistry(await regRes.json());
       }
-      
+
       const sysRes = await fetch(`http://${host}:7777/api/system/stats`);
       if (sysRes.ok) {
         setSystemStats(await sysRes.json());
@@ -89,7 +93,7 @@ function App() {
         setProjects(await projRes.json());
         setError(null);
       } else {
-        setError("Kan projectlijst niet ophalen van pmctl (:7777)");
+        setError("Kan projectlijst niet ophalen van pm2-center (:7777)");
       }
     } catch (err) {
       console.error("Connection error:", err);
@@ -132,6 +136,28 @@ function App() {
       await fetchRegistry();
     } else {
       alert(data.message);
+    }
+  };
+
+  const handleRegisterPort = async () => {
+    if (!newPort.service || !newPort.project) return;
+    const res = await fetch(`http://${host}:4444/ports/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service: newPort.service,
+        project: newPort.project,
+        description: newPort.description,
+        preferred_port: newPort.port ? parseInt(newPort.port) : null
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setShowPortModal(false);
+      setNewPort({ service: '', project: '', description: '', port: '' });
+      await fetchRegistry();
+    } else {
+      alert(data.detail || 'Fout bij registreren poort');
     }
   };
 
@@ -225,26 +251,31 @@ function App() {
             title={status === 'online' && !isStopping && project.open_ports.length > 0 ? `Open op :${project.open_ports[0]}` : undefined}
           >
             {isStopping ? 'STOPPING' : status.toUpperCase()}
+            {status === 'online' && !isStopping && project.open_ports.length > 0 && <ExternalLink size={10} style={{ marginLeft: '4px' }} />}
           </div>
         </div>
 
         <p className="goal">{project.description || "Geen beschrijving"}</p>
 
         <div className="project-stats">
-          <div className="mini-stat" title="CPU Gebruik">
-            <Cpu size={12} /> {project.status === 'running' ? `${project.cpu_percent}%` : '—'}
+          <div className="mini-stat">
+            <span className="stat-label">CPU</span>
+            {project.status === 'running' ? `${project.cpu_percent}%` : '—'}
           </div>
-          <div className="mini-stat" title="Geheugen">
-            <Layers size={12} /> {project.memory_mb > 0 ? `${project.memory_mb} MB` : '—'}
+          <div className="mini-stat">
+            <span className="stat-label">MEM</span>
+            {project.memory_mb > 0 ? `${Math.round(project.memory_mb)} MB` : '—'}
           </div>
-          <div className="mini-stat" title="Schijfgebruik">
-            <HardDrive size={12} /> {project.disk_usage}
+          <div className="mini-stat">
+            <span className="stat-label">DISK</span>
+            {project.disk_usage}
           </div>
-          <div className="tech-tag">{project.tech}</div>
         </div>
 
+        <div className="tech-tag">{project.tech}</div>
+
         <div className="location">
-          <Folder size={14} /> <code>{project.path}</code>
+          <Folder size={12} /> <code>{project.path}</code>
         </div>
 
         <div className="actions">
@@ -275,32 +306,32 @@ function App() {
   };
 
   const agents = Object.entries(projects).filter(([_, p]) => p.category === 'agent');
-  const infra  = Object.entries(projects).filter(([_, p]) => p.category === 'infra');
+  const infra = Object.entries(projects).filter(([_, p]) => p.category === 'infra');
   const uncategorized = Object.entries(projects).filter(([_, p]) => !p.category);
 
   return (
     <div className="dashboard">
       <header className="header">
         <div className="logo">
-          <Layers size={32} color="#4f46e5" />
-          <h1>KDC DASHBOARD</h1>
+          <Layers size={28} color="#3fb950" />
+          <h1>KDC's AI INCOME <span>GENERATION</span></h1>
         </div>
         <div className="header-actions">
           {systemStats && (
             <div className="system-metrics">
               <div className="metric" title="Totale CPU Belasting">
-                <Cpu size={14} />
-                <span>CPU: {systemStats.cpu_total}%</span>
+                <Cpu size={12} />
+                <span>CPU {systemStats.cpu_total}%</span>
               </div>
               <div className="metric" title="Systeemgeheugen in gebruik">
-                <Layers size={14} />
-                <span>RAM: {systemStats.memory.percent}%</span>
+                <Layers size={12} />
+                <span>RAM {systemStats.memory.percent}%</span>
               </div>
             </div>
           )}
           <div className="system-health">
-            <Activity size={18} />
-            <span>{loading ? 'Verbinden...' : (error ? 'Verbindingsfout' : 'Alle systemen actief')}</span>
+            <Activity size={16} />
+            <span>{loading ? 'Verbinden...' : (error ? 'Fout' : 'SYSTEM ONLINE')}</span>
             <div className={`status-dot ${loading ? 'yellow' : (error ? 'red' : 'green')}`}></div>
           </div>
         </div>
@@ -308,19 +339,19 @@ function App() {
 
       <nav className="sidebar">
         <button className={activeTab === 'projects' ? 'active' : ''} onClick={() => setActiveTab('projects')}>
-          <Rocket size={20} /> PM2 Overzicht
+          <Rocket size={18} /> Ecosysteem
         </button>
         <button className={activeTab === 'git' ? 'active' : ''} onClick={() => setActiveTab('git')}>
-          <Github size={20} /> GitHub Sync
+          <Github size={18} /> Source Control
         </button>
         <button className={activeTab === 'ports' ? 'active' : ''} onClick={() => setActiveTab('ports')}>
-          <Layout size={20} /> Port Registry
+          <Layout size={18} /> Port Registry
         </button>
         <button className={activeTab === 'sop' ? 'active' : ''} onClick={() => setActiveTab('sop')}>
-          <CheckCircle size={20} /> SOP / AI Rules
+          <CheckCircle size={18} /> AI Protocol
         </button>
         <div className="sidebar-footer">
-          <div className="version">v2.0.0 (KDC Edition)</div>
+          <div className="version">KDC ENGINE v2.0</div>
         </div>
       </nav>
 
@@ -329,15 +360,20 @@ function App() {
 
         {activeTab === 'projects' && (
           <div className="view">
+            <div className="mission-banner">
+              <h2><Rocket size={20} /> DOELSTELLING & VISIE</h2>
+              <div className="mission-text">
+                Dit ecosysteem is ontworpen voor <b>re-integratie en financiële onafhankelijkheid</b>. 
+                Door de inzet van autonome AI-agents (AIGA) en cloud-infrastructuur bouwen we aan een schaalbare bron van inkomsten.
+                De focus ligt op <b>automatisering van acquisitie</b> terwijl de mens de strategische controle behoudt.
+              </div>
+            </div>
+
             <div className="header-row">
-              <h2 className="section-title">KDC Ecosysteem</h2>
+              <h2 className="section-title">KDC Ecosystem Control</h2>
               <div className="button-group">
-                <button className="btn btn-outline btn-sm" onClick={fetchRegistry} title="Herlaad projectdata van pmctl"><RefreshCw size={14} /> Reload</button>
-                <button className="btn btn-warning btn-sm" onClick={() => handlePm2All('stop-all')} title="Stopt alleen de agents (dashboard blijft actief)"><Square size={14} /> Stop Agents</button>
-                <button className="btn btn-danger btn-sm" onClick={() => { if(confirm('Systeem volledig afsluiten? Dashboard wordt onbereikbaar.')) fetch(`http://${host}:7777/api/pm2/shutdown`, {method: 'POST'}) }} title="Full System Stop — stopt alles inclusief dashboard"><AlertCircle size={14} /> Full Shutdown</button>
-                <button className="btn btn-success btn-sm" onClick={() => handlePm2All('start-all')} title="pm2 start all — herstart alle gestopte processen"><Play size={14} /> Start All</button>
-                <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)} title="Voeg een nieuw project toe aan het dashboard"><PlusCircle size={14} /> Project</button>
-                <button className="btn btn-icon btn-help" onClick={() => setShowEmergencyModal(true)} title="Nood-instructies voor de terminal"><HelpCircle size={18} /></button>
+                <button className="btn btn-outline btn-sm" onClick={fetchRegistry} title="Refresh data"><RefreshCw size={14} /></button>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}><PlusCircle size={14} /> Nieuw Project</button>
               </div>
             </div>
 
@@ -359,17 +395,6 @@ function App() {
                 </div>
                 <div className="project-grid">
                   {infra.map(([id, project]) => renderCard(id, project))}
-                </div>
-              </div>
-            )}
-
-            {uncategorized.length > 0 && (
-              <div className="project-section">
-                <div className="section-label">
-                  <HelpCircle size={14} /> OVERIG
-                </div>
-                <div className="project-grid">
-                  {uncategorized.map(([id, project]) => renderCard(id, project))}
                 </div>
               </div>
             )}
@@ -430,7 +455,26 @@ function App() {
 
         {activeTab === 'ports' && (
           <div className="view">
-            <h2 className="section-title">Centraal Poort Register</h2>
+            <div className="header-row">
+              <h2 className="section-title">Centraal Poort Register</h2>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowPortModal(true)}>
+                <PlusCircle size={14} /> Poort Claimen
+              </button>
+            </div>
+
+            <div className="mission-banner" style={{ borderLeftColor: 'var(--primary)', marginBottom: '24px' }}>
+              <h2><HelpCircle size={18} /> Hoe werkt de koppeling?</h2>
+              <div className="mission-text">
+                De link tussen een poort en een project op de schijf is <b>puur administratief</b>:
+                <ul style={{ paddingLeft: '20px', marginTop: '10px' }}>
+                  <li>Wanneer je een poort claimt, slaat het register dit op in <code>registry.json</code> onder de naam van dat project.</li>
+                  <li><b>De koppeling op schijf:</b> Je project (bijv. een Python script) moet vervolgens <i>zelf</i> die poort gebruiken bij het opstarten.</li>
+                  <li><b>Het dashboard:</b> Dit leest <code>projects.json</code> en matcht dit met de data uit de registry om de status te tonen.</li>
+                </ul>
+                Het register is dus de <b>boekhouder</b>: het zegt "Karel heeft poort X gereserveerd voor project Y". Het dwingt niets af bij het script, maar zorgt voor een conflictvrij overzicht.
+              </div>
+            </div>
+
             <div className="port-registry-card">
               <table className="port-table">
                 <thead>
@@ -459,18 +503,50 @@ function App() {
         {activeTab === 'sop' && (
           <div className="view">
             <h2 className="section-title">Standard Operating Procedure</h2>
-            <div className="sop-card">
-              <h3>🤖 AI Agent Protocol</h3>
-              <ul className="sop-list">
-                <li><strong>1. Poort Check:</strong> Roep <code>GET :4444/ports</code> aan.</li>
-                <li><strong>2. Poort Claim:</strong> Registreer via <code>POST :4444/ports/request</code>.</li>
-                <li><strong>3. PM2 Setup:</strong> Voeg service toe aan PM2 voor persistentie.</li>
-                <li><strong>4. Git Push:</strong> Leg wijzigingen vast via de Git Sync tab.</li>
-              </ul>
+            <div className="sop-grid">
+              <div className="sop-card">
+                <h3>🤖 AI Agent Protocol (Technisch)</h3>
+                <ul className="sop-list">
+                  <li><strong>1. Poort Check:</strong> Agents vragen altijd een poort aan bij <code>port-registry</code> (:4444).</li>
+                  <li><strong>2. AI Waterfall:</strong> Alle LLM calls verlopen via de Waterfall (:5005) voor kostenbeheersing.</li>
+                  <li><strong>3. PM2 Setup:</strong> Nieuwe services worden direct aan PM2 toegevoegd voor persistentie.</li>
+                  <li><strong>4. Git Push:</strong> Na elke succesvolle wijziging moet de code gepushed worden via de Git-tab.</li>
+                </ul>
+              </div>
+              <div className="sop-card highlight">
+                <h3>👤 Menselijk Protocol (Besluitvorming)</h3>
+                <ul className="sop-list">
+                  <li><strong>1. Monitoring:</strong> Controleer dagelijks de OCI Hunter. Zodra de VPS live is, volgt migratie.</li>
+                  <li><strong>2. QA & Review:</strong> De mens beoordeelt de proposals die AIGA voorbereidt voordat ze verzonden worden.</li>
+                  <li><strong>3. Strategische Keuzes:</strong> Beslis welke gigs/leads prioriteit krijgen op basis van de Mission Banner.</li>
+                  <li><strong>4. Systeem-Integriteit:</strong> Vermijd handmatige aanpassingen in <code>projects.json</code>; gebruik het dashboard.</li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
       </main>
+
+      {showPortModal && (
+        <div className="modal-overlay" onClick={() => setShowPortModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Poort Reserveren</h3>
+              <button className="btn-icon" onClick={() => setShowPortModal(false)}><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <label>Service Naam *<input className="input" placeholder="bv. mijn-nieuwe-api" value={newPort.service} onChange={e => setNewPort(p => ({ ...p, service: e.target.value }))} /></label>
+              <label>Project Naam *<input className="input" placeholder="bv. aiga-pro" value={newPort.project} onChange={e => setNewPort(p => ({ ...p, project: e.target.value }))} /></label>
+              <label>Beschrijving<input className="input" placeholder="Waarvoor dient deze poort?" value={newPort.description} onChange={e => setNewPort(p => ({ ...p, description: e.target.value }))} /></label>
+              <label>Voorkeurspoort (Optioneel)<input className="input" placeholder="Laat leeg voor auto-toewijzing" value={newPort.port} onChange={e => setNewPort(p => ({ ...p, port: e.target.value }))} /></label>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline btn-sm" onClick={() => setShowPortModal(false)}>Annuleer</button>
+              <button className="btn btn-primary btn-sm" onClick={handleRegisterPort} disabled={!newPort.service || !newPort.project}>Registreren</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
@@ -480,19 +556,19 @@ function App() {
               <button className="btn-icon" onClick={() => setShowAddModal(false)}><X size={18} /></button>
             </div>
             <div className="modal-body">
-              <label>Naam *<input className="input" placeholder="bv. mijn-api" value={newProject.name} onChange={e => setNewProject(p => ({...p, name: e.target.value}))} /></label>
-              <label>Pad *<input className="input" placeholder="/home/kareltestspecial/KDC/..." value={newProject.location} onChange={e => setNewProject(p => ({...p, location: e.target.value}))} /></label>
-              <label>Beschrijving<input className="input" placeholder="Wat doet dit project?" value={newProject.goal} onChange={e => setNewProject(p => ({...p, goal: e.target.value}))} /></label>
-              <label>Tech<input className="input" placeholder="bv. Python (FastAPI)" value={newProject.tech} onChange={e => setNewProject(p => ({...p, tech: e.target.value}))} /></label>
+              <label>Naam *<input className="input" placeholder="bv. mijn-api" value={newProject.name} onChange={e => setNewProject(p => ({ ...p, name: e.target.value }))} /></label>
+              <label>Pad *<input className="input" placeholder="/home/kareltestspecial/1-Infrastructuur/..." value={newProject.location} onChange={e => setNewProject(p => ({ ...p, location: e.target.value }))} /></label>
+              <label>Beschrijving<input className="input" placeholder="Wat doet dit project?" value={newProject.goal} onChange={e => setNewProject(p => ({ ...p, goal: e.target.value }))} /></label>
+              <label>Tech<input className="input" placeholder="bv. Python (FastAPI)" value={newProject.tech} onChange={e => setNewProject(p => ({ ...p, tech: e.target.value }))} /></label>
               <label>Categorie
-                <select className="input" value={newProject.category} onChange={e => setNewProject(p => ({...p, category: e.target.value}))}>
+                <select className="input" value={newProject.category} onChange={e => setNewProject(p => ({ ...p, category: e.target.value }))}>
                   <option value="agent">Agent</option>
                   <option value="infra">Infrastructuur</option>
                 </select>
               </label>
-              <label>Start script<input className="input" placeholder="bv. node launch.js" value={newProject.startScript} onChange={e => setNewProject(p => ({...p, startScript: e.target.value}))} /></label>
-              <label>PM2 naam<input className="input" placeholder="bv. mijn-api (leeg = geen PM2)" value={newProject.pm2Name} onChange={e => setNewProject(p => ({...p, pm2Name: e.target.value}))} /></label>
-              <label>Service naam<input className="input" placeholder="bv. mijn-api (voor port registry)" value={newProject.serviceName} onChange={e => setNewProject(p => ({...p, serviceName: e.target.value}))} /></label>
+              <label>Start script<input className="input" placeholder="bv. node launch.js" value={newProject.startScript} onChange={e => setNewProject(p => ({ ...p, startScript: e.target.value }))} /></label>
+              <label>PM2 naam<input className="input" placeholder="bv. mijn-api (leeg = geen PM2)" value={newProject.pm2Name} onChange={e => setNewProject(p => ({ ...p, pm2Name: e.target.value }))} /></label>
+              <label>Service naam<input className="input" placeholder="bv. mijn-api (voor port registry)" value={newProject.serviceName} onChange={e => setNewProject(p => ({ ...p, serviceName: e.target.value }))} /></label>
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline btn-sm" onClick={() => setShowAddModal(false)}>Annuleer</button>
@@ -510,7 +586,7 @@ function App() {
             </div>
             <div className="modal-body">
               <p>Mocht het dashboard niet reageren of een proces (zoals port-registry) 100% CPU verbruiken, gebruik dan de volgende commando's in de terminal:</p>
-              
+
               <div className="command-block">
                 <label>Alles stoppen (PM2):</label>
                 <code>pm2 stop all && pm2 kill</code>
@@ -525,8 +601,8 @@ function App() {
                 <label>Forceer stop alle Python/Node processen:</label>
                 <code>pkill -9 -f "python" && pkill -9 -f "node"</code>
               </div>
-              
-              <p className="modal-footer-note">Herstart het systeem handmatig via: <code>~/start-assistant.sh</code> (indien geconfigureerd) of per project via <code>pmctl web</code>.</p>
+
+              <p className="modal-footer-note">Herstart het systeem handmatig via: <code>~/1-Infrastructuur/start-core.sh</code> (indien geconfigureerd) of per project via <code>pm2-center web</code>.</p>
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary btn-sm" onClick={() => setShowEmergencyModal(false)}>Begrepen</button>

@@ -1,26 +1,112 @@
 [
   {
-    "id": "aiga",
-    "name": "KarelsAssistant (AIGA)",
-    "location": "~/karelsassistant",
-    "goal": "Autonome inkomsten-zoeker en QA-loop engine.",
-    "serviceNames": ["aiga-api"],
-    "links": [{ "label": "Dashboard", "url": "http://localhost:8001" }]
+    "id": "aiga-worker",
+    "name": "AIGA Brain (Worker)",
+    "location": "~/2-Fabriek/aiga",
+    "goal": "Autonome inkomsten-zoeker (24/7 scanning).",
+    "serviceNames": [
+      "aiga-worker"
+    ],
+    "links": []
   },
   {
-    "id": "clawwork",
-    "name": "ClawWork (Benchmark)",
-    "location": "~/clawwork",
-    "goal": "AI Coworker economische survival simulatie.",
-    "serviceNames": ["clawwork-frontend", "clawwork-backend", "clawwork-mcp"],
-    "links": [{ "label": "Dashboard", "url": "http://localhost:3000" }]
+    "id": "aiga-api",
+    "name": "AIGA Dashboard",
+    "location": "~/2-Fabriek/aiga",
+    "goal": "Interface voor AIGA resultaten en QA status.",
+    "serviceNames": [
+      "aiga-api"
+    ],
+    "links": [
+      {
+        "label": "Open AIGA UI",
+        "url": "http://localhost:8001"
+      }
+    ]
+  },
+  {
+    "id": "oci-hunter",
+    "name": "OCI VPS Hunter",
+    "location": "~/1-Infrastructuur/OCI",
+    "goal": "Claimen van Oracle Cloud Free Tier ARM VPS.",
+    "serviceNames": [
+      "oci-hunt"
+    ],
+    "links": []
+  },
+  {
+    "id": "oci-monitor",
+    "name": "OCI Mission Control",
+    "location": "~/1-Infrastructuur/OCI/monitor",
+    "goal": "Dedicated VPS jacht monitor dashboard.",
+    "serviceNames": [
+      "oci-monitor"
+    ],
+    "links": [
+      {
+        "label": "Open Mission Control",
+        "url": "http://localhost:8002"
+      }
+    ]
   },
   {
     "id": "waterfall",
-    "name": "Central AI Waterfall",
-    "location": "~/karelsassistant/central-ai-waterfall",
-    "goal": "Gecentraliseerde AI fallback service (OpenAI compatibel).",
-    "serviceNames": ["central-ai-waterfall"],
-    "links": [{ "label": "Health Check", "url": "http://localhost:5005/health" }]
+    "name": "AI Waterfall",
+    "location": "~/1-Infrastructuur/central-ai-waterfall",
+    "goal": "Gecentraliseerde AI bridge voor alle agents.",
+    "serviceNames": [
+      "aiga-waterfall"
+    ],
+    "links": [
+      {
+        "label": "Health",
+        "url": "http://localhost:5005/health"
+      }
+    ]
+  },
+  {
+    "id": "pm2-center",
+    "group": "infra",
+    "location": "~/1-Infrastructuur/PM2-center",
+    "name": "PM2 Center Dashboard",
+    "serviceNames": [
+      "pm2-center"
+    ],
+    "links": [
+      {
+        "label": "Dashboard",
+        "url": "http://localhost:7777"
+      }
+    ]
+  },
+  {
+    "id": "kdc-dashboard",
+    "name": "KDC Dashboard",
+    "location": "~/1-Infrastructuur/kdc-dashboard",
+    "goal": "Master Dashboard.",
+    "serviceNames": [
+      "kdc-dashboard"
+    ],
+    "links": [
+      {
+        "label": "Open Dashboard",
+        "url": "http://localhost:3002"
+      }
+    ]
+  },
+  {
+    "id": "port-registry",
+    "name": "Port Registry",
+    "location": "~/1-Infrastructuur/port-registry",
+    "goal": "Port Management.",
+    "serviceNames": [
+      "port-registry"
+    ],
+    "links": [
+      {
+        "label": "Registry",
+        "url": "http://localhost:4444"
+      }
+    ]
   }
 ]
